@@ -1,0 +1,2144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cinema of Horrors - ESL Escape Room</title>
+    
+    <!-- Preload background images -->
+    <link rel="preload" as="image" href="https://i.imgur.com/mMwGsy6.jpeg">
+    <link rel="preload" as="image" href="https://i.imgur.com/OUWlCIf.jpeg">
+    <link rel="preload" as="image" href="https://i.imgur.com/syyhKTW.jpeg">
+    <link rel="preload" as="image" href="https://i.imgur.com/yIFgg8s.jpeg">
+
+    <link href="https://fonts.googleapis.com/css2?family=Creepster&family=Special+Elite&family=VT323&family=Old+Standard+TT:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --red-glow: #ff002b;
+            --gold-glow: #ffcc00;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            background-color: #020104;
+            color: #e0d0e0;
+            font-family: 'Special Elite', cursive;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Retro VHS Overlay */
+        .vhs-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: 
+                radial-gradient(circle at 50% 50%, transparent 50%, rgba(0,0,0,0.7) 100%),
+                linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+            background-size: 100% 100%, 100% 4px;
+            z-index: 99;
+            pointer-events: none;
+        }
+
+        /* Main Game Frame */
+        #game-frame {
+            position: relative;
+            width: 1000px;
+            height: 650px;
+            background: #000;
+            border: 3px solid #2a121a;
+            border-radius: 8px;
+            box-shadow: 0 0 50px rgba(0,0,0,0.95), 0 0 30px rgba(255, 0, 43, 0.25);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Top HUD Header */
+        #hud-header {
+            height: 50px;
+            background: rgba(10, 5, 8, 0.95);
+            border-bottom: 2px solid #3a1620;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 50;
+        }
+
+        .cinema-title {
+            font-family: 'Creepster', cursive;
+            font-size: 26px;
+            color: var(--red-glow);
+            text-shadow: 0 0 10px var(--red-glow);
+            letter-spacing: 2px;
+        }
+
+        .hud-stats {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            font-family: 'VT323', monospace;
+            font-size: 22px;
+        }
+
+        .timer-box {
+            background: #20050a;
+            border: 1px solid var(--red-glow);
+            padding: 2px 10px;
+            border-radius: 4px;
+            color: #ff3355;
+            box-shadow: 0 0 8px rgba(255, 0, 43, 0.3);
+        }
+
+        /* Inventory Slots */
+        .inventory-ring {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .item-slot {
+            width: 32px;
+            height: 32px;
+            border: 1px dashed #552233;
+            background: #090306;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            color: #552233;
+            font-family: 'VT323', monospace;
+        }
+
+        .item-slot.found {
+            border-style: solid;
+            border-color: var(--gold-glow);
+            color: var(--gold-glow);
+            background: #332200;
+            box-shadow: 0 0 10px var(--gold-glow);
+        }
+
+        /* SCENES AND TRANSITIONS */
+        .scene {
+            position: absolute;
+            top: 50px;
+            left: 0;
+            width: 100%;
+            height: calc(100% - 50px);
+            background-size: cover;
+            background-position: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+        }
+
+        .scene.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        #scene-lobby { background-image: url('https://i.imgur.com/mMwGsy6.jpeg'); }
+        #scene-cindy { background-image: url('https://i.imgur.com/OUWlCIf.jpeg'); }
+        #scene-boiler { background-image: url('https://i.imgur.com/syyhKTW.jpeg'); }
+        #scene-lake { background-image: url('https://i.imgur.com/yIFgg8s.jpeg'); }
+
+        /* Helper Hint Bars */
+        .scene-hint-bar {
+            position: absolute;
+            bottom: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(10, 5, 8, 0.88);
+            border: 1px solid rgba(255, 204, 0, 0.6);
+            color: var(--gold-glow);
+            padding: 6px 18px;
+            border-radius: 20px;
+            font-size: 13px;
+            letter-spacing: 1px;
+            text-align: center;
+            pointer-events: none;
+            box-shadow: 0 0 12px rgba(0, 0, 0, 0.8);
+            z-index: 30;
+        }
+
+        /* Back Button */
+        .back-btn {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            z-index: 40;
+            background: rgba(10, 5, 8, 0.85);
+            border: 1px solid var(--red-glow);
+            color: #fff;
+            padding: 6px 14px;
+            font-family: 'Special Elite', cursive;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .back-btn:hover {
+            background: var(--red-glow);
+            color: #000;
+            box-shadow: 0 0 10px var(--red-glow);
+        }
+
+        /* Hotspots */
+        .hotspot {
+            position: absolute;
+            border: 2px dashed transparent;
+            background: rgba(255, 0, 43, 0);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: transparent;
+            font-size: 13px;
+            font-weight: bold;
+            text-shadow: none;
+            border-radius: 6px;
+            text-align: center;
+            z-index: 10;
+        }
+
+        .hotspot:hover {
+            border-color: var(--gold-glow);
+            background: rgba(255, 204, 0, 0.25);
+            color: #ffffff;
+            text-shadow: 0 0 8px #000, 0 0 5px var(--gold-glow);
+            box-shadow: 0 0 20px var(--gold-glow);
+        }
+
+        /* Hotspots LOBBY */
+        #spot-hallway { top: 31%; left: 12.5%; width: 14.5%; height: 48%; }
+        #spot-popcorn { top: 48.5%; left: 41.5%; width: 7.5%; height: 15%; }
+        #spot-exit-door { top: 43.5%; left: 56.5%; width: 14%; height: 31%; }
+        #spot-ticket-booth { top: 36%; left: 77.5%; width: 20%; height: 25%; }
+
+        /* Hotspots CINDY'S ROOM */
+        #spot-newspapers { top: 57%; left: 23%; width: 21%; height: 18%; }
+        #spot-tv { top: 35%; left: 1.5%; width: 17%; height: 25%; }
+
+        /* Hotspots BOILER ROOM */
+        #spot-stairs {
+            top: 50%;
+            left: 71%;
+            width: 12%;
+            height: 35%;
+            z-index: 25;
+            display: none;
+        }
+
+        /* Hotspots CAMP CRYSTAL LAKE */
+        #spot-cabin {
+            top: 40%;
+            left: 4%;
+            width: 20%;
+            height: 35%;
+            z-index: 25;
+        }
+
+        #spot-boat {
+            top: 52%;
+            left: 49%;
+            width: 18%;
+            height: 25%;
+            z-index: 25;
+        }
+
+        /* FLASHLIGHT & DARKNESS OVERLAY */
+        #boiler-darkness {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            z-index: 20;
+            pointer-events: none;
+            transition: opacity 0.8s ease, background 0.1s ease;
+        }
+
+        #boiler-darkness.flashlight-active {
+            background: radial-gradient(circle 130px at var(--mouse-x, 50%) var(--mouse-y, 50%), transparent 0%, rgba(0,0,0,0.98) 100%);
+        }
+
+        #boiler-darkness.lights-on {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* REAL MASK IMAGES */
+        .horror-mask {
+            position: absolute;
+            z-index: 25;
+            cursor: pointer;
+            width: 48px;
+            height: 48px;
+            object-fit: contain;
+            border-radius: 50%;
+            filter: drop-shadow(0 0 6px rgba(0,0,0,0.9));
+            transition: transform 0.2s, filter 0.2s, opacity 0.2s ease;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .horror-mask.lit {
+            opacity: 1 !important;
+            pointer-events: auto !important;
+        }
+
+        .horror-mask:hover {
+            transform: scale(1.35);
+            filter: drop-shadow(0 0 14px var(--gold-glow)) brightness(1.25);
+        }
+
+        #mask-pennywise {
+            mix-blend-mode: screen;
+            border-radius: 50%;
+        }
+
+        .mask-counter-bar {
+            position: absolute;
+            bottom: 45px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(10, 5, 8, 0.92);
+            border: 1px solid var(--gold-glow);
+            color: var(--gold-glow);
+            padding: 6px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            z-index: 30;
+            box-shadow: 0 0 12px rgba(0,0,0,0.9);
+            text-align: center;
+        }
+
+        .turn-lights-btn-container {
+            position: absolute;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 35;
+            display: none;
+        }
+
+        .turn-lights-btn {
+            background: var(--gold-glow);
+            color: #000;
+            font-weight: bold;
+            font-family: 'Special Elite', cursive;
+            font-size: 15px;
+            padding: 8px 18px;
+            border: 2px solid #fff;
+            border-radius: 6px;
+            cursor: pointer;
+            box-shadow: 0 0 15px var(--gold-glow);
+            animation: pulse 1.5s infinite alternate;
+        }
+
+        .turn-lights-btn:hover {
+            background: #fff;
+            box-shadow: 0 0 22px #fff;
+            transform: scale(1.05);
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.88);
+            z-index: 80;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: #150a10;
+            border: 2px solid var(--red-glow);
+            padding: 25px;
+            border-radius: 8px;
+            max-width: 650px;
+            width: 95%;
+            text-align: center;
+            box-shadow: 0 0 25px rgba(255, 0, 43, 0.5);
+        }
+
+        .modal h2 { margin-bottom: 10px; color: var(--gold-glow); font-size: 22px; }
+        .modal p { margin-bottom: 15px; font-size: 14px; line-height: 1.4; }
+
+        button {
+            background: #330510;
+            border: 1px solid var(--red-glow);
+            color: #fff;
+            padding: 8px 18px;
+            font-family: 'Special Elite', cursive;
+            cursor: pointer;
+            margin: 5px;
+            transition: 0.2s;
+        }
+
+        button:hover {
+            background: var(--red-glow);
+            color: #000;
+            box-shadow: 0 0 10px var(--red-glow);
+        }
+
+        .close-btn { background: #222; border-color: #555; }
+        .close-btn:hover { background: #555; color: #fff; }
+
+        /* THEME 1: VINTAGE NEWSPAPER MODAL */
+        .newspaper-modal {
+            background: #e8dcc4;
+            background-image: 
+                radial-gradient(circle, rgba(0,0,0,0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(120, 100, 70, 0.15), rgba(40, 30, 20, 0.3));
+            border: 5px double #2b1f14;
+            color: #1a120b;
+            font-family: 'Old Standard TT', serif;
+            box-shadow: 0 0 35px rgba(0, 0, 0, 0.95), inset 0 0 50px rgba(100, 70, 40, 0.4);
+            padding: 25px;
+        }
+
+        .newspaper-modal h2 {
+            font-family: 'Old Standard TT', serif;
+            font-weight: 700;
+            font-size: 30px;
+            color: #0b0704;
+            text-transform: uppercase;
+            border-bottom: 3px double #2b1f14;
+            padding-bottom: 6px;
+            letter-spacing: 2px;
+            text-shadow: 1px 1px 0 rgba(255,255,255,0.4);
+        }
+
+        .newspaper-modal p {
+            font-family: 'Old Standard TT', serif;
+            font-size: 16px;
+            color: #1a0f07;
+            font-weight: 600;
+            line-height: 1.4;
+        }
+
+        .matching-container {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            margin: 15px 0;
+        }
+
+        .matching-column {
+            width: 48%;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .matching-card {
+            background: #fffdf7;
+            border: 2px solid #362010;
+            color: #0c0703;
+            padding: 11px 8px;
+            font-family: 'Old Standard TT', serif;
+            font-weight: 700;
+            font-size: 15px;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+            text-align: center;
+            box-shadow: 1px 2px 5px rgba(0,0,0,0.25);
+        }
+
+        .matching-card:hover {
+            border-color: #8b0000;
+            background: #fff4e0;
+            transform: translateY(-2px);
+            box-shadow: 2px 4px 8px rgba(139, 0, 0, 0.35);
+        }
+
+        .matching-card.selected {
+            border-color: #8b0000;
+            background: #8b0000;
+            color: #ffffff;
+            box-shadow: 0 0 12px rgba(139, 0, 0, 0.7);
+        }
+
+        .matching-card.matched {
+            border-color: #1e4510;
+            background: #d8edca;
+            color: #133307;
+            font-weight: 700;
+            cursor: default;
+            opacity: 0.9;
+            text-decoration: line-through;
+            box-shadow: none;
+        }
+
+        .newspaper-btn {
+            background: #2b1f14;
+            border: 2px solid #000;
+            color: #f4ebd9;
+            font-family: 'Old Standard TT', serif;
+            font-weight: 700;
+            font-size: 15px;
+            padding: 8px 20px;
+        }
+
+        .newspaper-btn:hover {
+            background: #8b0000;
+            color: #fff;
+            box-shadow: 0 0 10px rgba(139, 0, 0, 0.7);
+        }
+
+        .clue-reveal-box {
+            display: none;
+            background: #20130a;
+            color: #f4ebd9;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+            border: 2px solid var(--gold-glow);
+            box-shadow: 0 0 15px rgba(0,0,0,0.8);
+        }
+
+        .highlight-year {
+            color: var(--gold-glow);
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 0 0 10px var(--gold-glow);
+        }
+
+        /* THEME 2: CABIN 13 - RUSTIC WOODEN FOOTLOCKER */
+        .cabin-theme-modal {
+            max-width: 780px !important;
+            width: 95% !important;
+            background: 
+                radial-gradient(circle at 50% 30%, rgba(20, 10, 5, 0.7), rgba(5, 3, 2, 0.95)),
+                linear-gradient(135deg, #2b180d 0%, #150a05 50%, #2b180d 100%) !important;
+            border: 5px solid #4a2813 !important;
+            border-radius: 14px !important;
+            box-shadow: 0 0 50px rgba(0,0,0,0.95), inset 0 0 35px rgba(0, 0, 0, 0.8), 0 0 20px rgba(255, 204, 0, 0.15) !important;
+            padding: 28px !important;
+            position: relative;
+        }
+
+        .cabin-theme-modal::before {
+            content: "CABIN 13 • CAMP CRYSTAL LAKE";
+            position: absolute;
+            top: -14px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #110703;
+            border: 2px solid #8c532b;
+            color: #c9935d;
+            font-family: 'Special Elite', cursive;
+            font-size: 12px;
+            padding: 2px 14px;
+            border-radius: 4px;
+            letter-spacing: 2px;
+        }
+
+        .cabin-theme-modal h2 {
+            font-family: 'Creepster', cursive;
+            font-size: 32px;
+            color: #ff9d42;
+            text-shadow: 0 0 12px #ff4800, 2px 2px 4px #000;
+            letter-spacing: 2px;
+            margin-bottom: 6px;
+        }
+
+        .relics-tray {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            margin: 15px 0;
+            background: rgba(12, 6, 3, 0.85);
+            padding: 12px 18px;
+            border-radius: 8px;
+            border: 2px solid #5a341a;
+            box-shadow: inset 0 0 15px #000;
+        }
+
+        .relic-item {
+            font-size: 28px;
+            width: 52px;
+            height: 52px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            background: #180c06;
+            border: 2px dashed #4a2612;
+            opacity: 0.25;
+            transition: all 0.3s ease;
+        }
+
+        .relic-item.unlocked {
+            opacity: 1;
+            border: 2px solid var(--gold-glow);
+            background: #3d230a;
+            box-shadow: 0 0 15px var(--gold-glow);
+            transform: scale(1.05);
+            animation: pulse 1.2s infinite alternate;
+        }
+
+        .trivia-card {
+            background: #140904;
+            border: 2px solid #7c441f;
+            border-radius: 8px;
+            padding: 18px;
+            margin: 15px 0;
+            color: #f7ede2;
+            font-size: 17px;
+            line-height: 1.5;
+            min-height: 75px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.9);
+            text-align: center;
+        }
+
+        .quiz-answers-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 15px 0;
+        }
+
+        .quiz-btn {
+            background: linear-gradient(180deg, #241209 0%, #150904 100%);
+            border: 2px solid #5d351b;
+            color: #fcefe3;
+            font-size: 14px;
+            padding: 12px;
+            text-align: left;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Special Elite', cursive;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.7);
+        }
+
+        .quiz-btn:hover {
+            border-color: var(--gold-glow);
+            background: #44220f;
+            color: #ffffff;
+            transform: translateY(-2px);
+            box-shadow: 0 0 12px rgba(255, 204, 0, 0.4);
+        }
+
+        .camp-diary-note {
+            display: none;
+            background: #e6d5b8;
+            background-image: 
+                radial-gradient(circle at 80% 20%, rgba(139, 0, 0, 0.18) 0%, transparent 40%),
+                linear-gradient(rgba(100, 70, 30, 0.15), rgba(40, 20, 10, 0.25));
+            border: 3px dashed #6b4020;
+            color: #1f1105;
+            padding: 18px;
+            border-radius: 6px;
+            margin-top: 15px;
+            text-align: left;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8), inset 0 0 30px rgba(120, 80, 40, 0.3);
+            font-family: 'Old Standard TT', serif;
+        }
+
+        .camp-diary-note h3 {
+            font-family: 'Old Standard TT', serif;
+            font-size: 20px;
+            color: #690a0a;
+            text-align: center;
+            margin-bottom: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            border-bottom: 2px solid #7c441f;
+            padding-bottom: 5px;
+        }
+
+        .camp-diary-note p {
+            font-size: 15px;
+            line-height: 1.6;
+            color: #1a0f07;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .riddle-verse {
+            font-style: italic;
+            color: #3b1704;
+            padding-left: 10px;
+            border-left: 3px solid #8b0000;
+            margin: 6px 0;
+            font-size: 15px;
+        }
+
+        /* THEME 3: ABANDONED BOAT - OLD LEATHER BRIEFCASE */
+        .briefcase-theme-modal {
+            max-width: 760px !important;
+            width: 95% !important;
+            background: 
+                radial-gradient(circle at 50% 50%, #2b180d 0%, #110703 100%) !important;
+            border: 5px solid #6b3e1b !important;
+            border-radius: 16px !important;
+            box-shadow: 0 0 50px rgba(0,0,0,0.98), inset 0 0 35px rgba(0,0,0,0.9), 0 0 25px rgba(255, 204, 0, 0.2) !important;
+            padding: 30px !important;
+            position: relative;
+        }
+
+        .briefcase-theme-modal::before {
+            content: "LOCKED NAUTICAL CHEST • BRASS COMBINATION";
+            position: absolute;
+            top: -14px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1a0d05;
+            border: 2px solid #c9935d;
+            color: #ffd285;
+            font-family: 'Special Elite', cursive;
+            font-size: 12px;
+            padding: 2px 16px;
+            border-radius: 4px;
+            letter-spacing: 2px;
+        }
+
+        .briefcase-theme-modal h2 {
+            font-family: 'Creepster', cursive;
+            font-size: 32px;
+            color: var(--gold-glow);
+            text-shadow: 0 0 12px var(--gold-glow), 2px 2px 4px #000;
+            letter-spacing: 2px;
+            margin-bottom: 6px;
+        }
+
+        .briefcase-slots {
+            display: flex;
+            justify-content: center;
+            gap: 14px;
+            margin: 20px 0;
+        }
+
+        .briefcase-slot-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .slot-roman-label {
+            font-family: 'Old Standard TT', serif;
+            font-weight: 700;
+            font-size: 13px;
+            color: #d8a05c;
+            letter-spacing: 1px;
+        }
+
+        .briefcase-slot {
+            width: 65px;
+            height: 65px;
+            background: linear-gradient(135deg, #100602 0%, #200d05 100%);
+            border: 3px solid #8c5225;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            cursor: pointer;
+            box-shadow: inset 0 0 12px #000, 0 3px 6px rgba(0,0,0,0.8);
+            transition: all 0.2s;
+        }
+
+        .briefcase-slot:hover {
+            border-color: var(--gold-glow);
+            background: #361708;
+            transform: scale(1.05);
+            box-shadow: 0 0 12px var(--gold-glow);
+        }
+
+        .briefcase-selection-pool {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 18px 0;
+            background: rgba(8, 4, 2, 0.75);
+            padding: 12px;
+            border-radius: 10px;
+            border: 2px solid #4a2612;
+        }
+
+        .briefcase-token-btn {
+            width: 55px;
+            height: 55px;
+            background: #231107;
+            border: 2px solid #c9935d;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            cursor: pointer;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.8);
+            transition: all 0.2s;
+        }
+
+        .briefcase-token-btn:hover {
+            transform: scale(1.18);
+            border-color: #ffe082;
+            box-shadow: 0 0 15px #ffe082;
+            background: #3d1e0c;
+        }
+
+        .briefcase-token-btn.used {
+            opacity: 0.2;
+            cursor: default;
+            transform: none !important;
+            border-color: #333;
+            box-shadow: none;
+        }
+
+        .room-complete-banner {
+            display: none;
+            margin-top: 15px;
+            padding: 12px;
+            background: rgba(30, 20, 10, 0.95);
+            border: 2px solid var(--gold-glow);
+            border-radius: 6px;
+            color: var(--gold-glow);
+            font-size: 14px;
+            text-align: center;
+            box-shadow: 0 0 15px var(--gold-glow);
+        }
+
+        /* RETRO TV */
+        .tv-chassis {
+            background: linear-gradient(145deg, #3d2516, #1c1008);
+            border: 6px solid #110904;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 0 35px rgba(0,0,0,0.9), inset 0 0 15px rgba(255,255,255,0.1);
+            max-width: 580px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .tv-screen-frame {
+            background: #111;
+            border: 8px solid #281a10;
+            border-radius: 25px;
+            width: 100%;
+            height: 180px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: inset 0 0 30px #000;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .tv-crt-display {
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at center, #0b1a0e 0%, #020803 100%);
+            color: #4efd54;
+            font-family: 'VT323', monospace;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-shadow: 0 0 8px #4efd54;
+            padding: 10px;
+        }
+
+        .tv-channel-number {
+            font-size: 42px;
+            letter-spacing: 6px;
+            margin: 5px 0;
+            color: #79ff7e;
+        }
+
+        .tv-controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            width: 220px;
+            margin-top: 15px;
+        }
+
+        .tv-key-btn {
+            background: #21130a;
+            border: 1px solid #5a3821;
+            color: #d1b89d;
+            font-family: 'VT323', monospace;
+            font-size: 22px;
+            padding: 8px 0;
+            border-radius: 4px;
+            cursor: pointer;
+            box-shadow: 1px 2px 4px rgba(0,0,0,0.6);
+            transition: all 0.15s ease;
+        }
+
+        .tv-key-btn:hover {
+            background: #4a2d18;
+            color: #fff;
+            border-color: var(--gold-glow);
+            box-shadow: 0 0 8px var(--gold-glow);
+        }
+
+        .tv-key-btn:active { transform: translateY(2px); }
+
+        .tv-action-btn {
+            background: #4a0d0d;
+            border-color: #8b0000;
+            color: #ffaaaa;
+        }
+
+        .tv-action-btn:hover {
+            background: var(--red-glow);
+            color: #000;
+        }
+
+        /* BOILER QUIZ */
+        .boiler-quiz-modal {
+            max-width: 820px !important;
+            width: 95% !important;
+            background: linear-gradient(135deg, #1c1512 0%, #0a0705 100%) !important;
+            border: 4px solid #5a3821 !important;
+            box-shadow: 0 0 40px rgba(0,0,0,0.95), inset 0 0 20px rgba(255, 0, 43, 0.2) !important;
+            padding: 30px !important;
+            border-radius: 12px !important;
+        }
+
+        .boiler-quiz-modal h2 {
+            font-family: 'Creepster', cursive;
+            font-size: 32px;
+            color: var(--red-glow);
+            text-shadow: 0 0 10px var(--red-glow);
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+        }
+
+        .mask-quiz-grid {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .mask-quiz-item {
+            width: 85px;
+            height: 85px;
+            object-fit: contain;
+            border: 3px solid #3d2516;
+            background: #0d0705;
+            padding: 8px;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: inset 0 0 10px #000, 0 4px 8px rgba(0,0,0,0.8);
+            transition: all 0.2s ease;
+        }
+
+        .mask-quiz-item:hover {
+            border-color: var(--gold-glow);
+            transform: scale(1.15) translateY(-4px);
+            box-shadow: 0 0 20px var(--gold-glow);
+            background: #26160c;
+        }
+
+        .mask-quiz-item.matched {
+            opacity: 0.25;
+            filter: grayscale(100%);
+            cursor: default;
+            border-color: #222;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .riddle-card {
+            background: #14080c;
+            border: 2px solid var(--red-glow);
+            padding: 22px;
+            border-radius: 8px;
+            margin: 18px 0;
+            font-size: 19px;
+            line-height: 1.5;
+            color: #fff;
+            min-height: 90px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.9), 0 0 10px rgba(255, 0, 43, 0.3);
+            font-family: 'Special Elite', cursive;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="vhs-overlay"></div>
+
+    <div id="game-frame">
+        <!-- Top HUD -->
+        <div id="hud-header">
+            <div class="cinema-title">CINEMA OF HORRORS</div>
+            <div class="hud-stats">
+                <div class="timer-box">TIME: <span id="timer">15:00</span></div>
+                <div class="inventory-ring">
+                    <div class="item-slot" id="slot-flashlight" title="Flashlight">🔦</div>
+                    <div class="item-slot" id="slot-crowbar" title="Heavy Crowbar">⛏️</div>
+                    <div class="item-slot" id="slot-key-exit" title="Master Exit Key">🔑</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SCENE 1: LOBBY -->
+        <div id="scene-lobby" class="scene active">
+            <div class="hotspot" id="spot-hallway">Hallway</div>
+            <div class="hotspot" id="spot-popcorn">Popcorn Machine</div>
+            <div class="hotspot" id="spot-exit-door">Locked Exit Door</div>
+            <div class="hotspot" id="spot-ticket-booth">Ticket Booth (Crystal Lake)</div>
+            
+            <div class="scene-hint-bar">
+                HINT: Explore the cinema rooms to discover items and unlock the final exit door!
+            </div>
+        </div>
+
+        <!-- SCENE 2: CINDY'S LIVING ROOM -->
+        <div id="scene-cindy" class="scene">
+            <button class="back-btn" onclick="switchScene('scene-lobby')">&larr; Back to Lobby</button>
+            <div class="hotspot" id="spot-newspapers">Movie Newspapers</div>
+            <div class="hotspot" id="spot-tv">Retro TV</div>
+
+            <div id="room-complete-notice" class="room-complete-banner" style="position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); z-index: 30;">
+                ★ <strong>ROOM COMPLETED!</strong> ★<br>
+                You found the Flashlight and the secret clue! Return to the <strong>Lobby</strong> for your next challenge.
+            </div>
+        </div>
+
+        <!-- SCENE 3: FREDDY'S BOILER ROOM -->
+        <div id="scene-boiler" class="scene">
+            <button class="back-btn" onclick="switchScene('scene-lobby')" style="z-index: 45;">&larr; Back to Lobby</button>
+            
+            <div id="boiler-darkness"></div>
+
+            <div class="hotspot" id="spot-stairs" onclick="openStairsQuizModal()">
+                Stairs
+            </div>
+
+            <!-- 5 Horror Masks -->
+            <img src="https://i.imgur.com/SooY05Q.png" class="horror-mask" id="mask-ghostface" title="Ghostface Mask" onclick="collectMask('Ghostface Mask', 'mask-ghostface')">
+            <img src="https://i.imgur.com/L9j71Wx.png" class="horror-mask" id="mask-jason" title="Jason's Hockey Mask" onclick="collectMask('Jason Hockey Mask', 'mask-jason')">
+            <img src="https://i.imgur.com/GjuBkNm.png" class="horror-mask" id="mask-myers" title="Michael Myers Mask" onclick="collectMask('Michael Myers Mask', 'mask-myers')">
+            <img src="https://i.imgur.com/IKeeaEU.jpeg" class="horror-mask" id="mask-pennywise" title="Pennywise Mask" onclick="collectMask('Pennywise Mask', 'mask-pennywise')">
+            <img src="https://i.imgur.com/dOW0uWv.png" class="horror-mask" id="mask-saw" title="Pig Mask" onclick="collectMask('Pig Mask', 'mask-saw')">
+
+            <div class="mask-counter-bar" id="mask-bar-container">
+                MASKS COLLECTED: <span id="masks-count">0</span> / 5
+            </div>
+
+            <div class="turn-lights-btn-container" id="btn-turn-lights-wrap">
+                <button class="turn-lights-btn" onclick="turnOnBoilerLights()">
+                    💡 Turn On Boiler Lights
+                </button>
+            </div>
+
+            <div class="scene-hint-bar" id="boiler-hint-text" style="display: none;">
+                HINT: Move your flashlight around the dark room to locate and collect the 5 hidden Horror Masks!
+            </div>
+
+            <div id="boiler-complete-notice" class="room-complete-banner" style="position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); z-index: 30;">
+                ★ <strong>BOILER ROOM COMPLETED!</strong> ★<br>
+                You unlocked the Heavy Crowbar! Return to the <strong>Lobby</strong> to explore Camp Crystal Lake.
+            </div>
+        </div>
+
+        <!-- SCENE 4: CAMP CRYSTAL LAKE -->
+        <div id="scene-lake" class="scene">
+            <button class="back-btn" onclick="switchScene('scene-lobby')" style="z-index: 45;">&larr; Back to Lobby</button>
+            
+            <div class="hotspot" id="spot-cabin" onclick="interactWithCabin()">Cabin 13</div>
+            <div class="hotspot" id="spot-boat" onclick="interactWithBoat()">Abandoned Boat</div>
+
+            <div class="scene-hint-bar">
+                CAMP CRYSTAL LAKE: Use the Crowbar on Cabin 13, then investigate the Abandoned Boat!
+            </div>
+
+            <div id="lake-complete-notice" class="room-complete-banner" style="position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); z-index: 30;">
+                ★ <strong>CAMP CRYSTAL LAKE COMPLETED!</strong> ★<br>
+                You obtained the Master Exit Key! Head to the <strong>Lobby</strong> to unlock the final exit door!
+            </div>
+        </div>
+
+        <!-- LOBBY EXIT MODAL -->
+        <div class="modal" id="modal-exit">
+            <div class="modal-content">
+                <h2>Locked Exit Door</h2>
+                <p id="exit-status-text">The cinema exit door is secured with heavy chains and padlocks. You need the Master Exit Key to escape!</p>
+                <button id="try-escape-btn">Unlock & Escape Cinema</button>
+                <button class="close-btn" onclick="closeModal('modal-exit')">Close</button>
+            </div>
+        </div>
+
+        <!-- PUZZLE 1: MOVIE MATCHING -->
+        <div class="modal" id="modal-matching-puzzle">
+            <div class="modal-content newspaper-modal">
+                <h2>The Daily Horror Gazette</h2>
+                <p>Match each original English Horror Movie Title with its official Brazilian Title translation to reveal a secret clue!</p>
+                
+                <div class="matching-container">
+                    <div class="matching-column" id="col-english"></div>
+                    <div class="matching-column" id="col-brazilian"></div>
+                </div>
+
+                <p id="matching-status" style="color: #8b0000; font-weight: bold; font-size: 16px; min-height: 22px;"></p>
+                
+                <div id="newspaper-clue-box" class="clue-reveal-box">
+                    <p style="color: #fff; font-size: 16px; margin-bottom: 8px;">★ <strong>ARCHIVE CLUE DISCOVERED!</strong> ★</p>
+                    <p style="color: #e0d0e0; font-size: 15px;">
+                        An archived article headline catches your eye:<br>
+                        <em>"Iconic horror film 'Scream' premiered in theaters in the year <span class="highlight-year">1996</span>!"</em>
+                    </p>
+                </div>
+
+                <br>
+                <button class="newspaper-btn" onclick="closeModal('modal-matching-puzzle')">Close Gazette</button>
+            </div>
+        </div>
+
+        <!-- PUZZLE 2: RETRO TV -->
+        <div class="modal" id="modal-tv-puzzle">
+            <div class="modal-content">
+                <h2>Retro Television Set</h2>
+                <p>Tune the TV channel to the release year of <strong>Scream</strong>!</p>
+                
+                <div class="tv-chassis">
+                    <div class="tv-screen-frame">
+                        <div class="tv-crt-display" id="tv-display">
+                            <span style="font-size: 14px; color: #888;">[ CHANNEL SELECT ]</span>
+                            <div class="tv-channel-number" id="tv-channel-digits">----</div>
+                            <span id="tv-status-msg" style="font-size: 13px; color: #4efd54; text-align: center; padding: 0 10px;">ENTER 4-DIGIT YEAR</span>
+                        </div>
+                    </div>
+
+                    <div class="tv-controls">
+                        <button class="tv-key-btn" onclick="pressTvDigit('1')">1</button>
+                        <button class="tv-key-btn" onclick="pressTvDigit('2')">2</button>
+                        <button class="tv-key-btn" onclick="pressTvDigit('3')">3</button>
+                        <button class="tv-key-btn" onclick="pressTvDigit('4')">4</button>
+                        <button class="tv-key-btn" onclick="pressTvDigit('5')">5</button>
+                        <button class="tv-key-btn" onclick="pressTvDigit('6')">6</button>
+                        <button class="tv-key-btn" onclick="pressTvDigit('7')">7</button>
+                        <button class="tv-key-btn" onclick="pressTvDigit('8')">8</button>
+                        <button class="tv-key-btn" onclick="pressTvDigit('9')">9</button>
+                        <button class="tv-key-btn tv-action-btn" onclick="clearTvDigits()">CLR</button>
+                        <button class="tv-key-btn" onclick="pressTvDigit('0')">0</button>
+                        <button class="tv-key-btn tv-action-btn" id="check-tv">TUNE</button>
+                    </div>
+                </div>
+
+                <div id="flashlight-reveal" style="display: none; margin-top: 10px;">
+                    <p style="color: var(--gold-glow); font-size: 13px;">A compartment under the screen popped open!</p>
+                    <button id="collect-flashlight-btn">🔦 Click to Collect Flashlight</button>
+                </div>
+
+                <br>
+                <button class="close-btn" onclick="closeModal('modal-tv-puzzle')">Close TV</button>
+            </div>
+        </div>
+
+        <!-- PUZZLE 3: BOILER CONTROL PANEL -->
+        <div class="modal" id="modal-stairs-quiz">
+            <div class="modal-content boiler-quiz-modal">
+                <h2>VILLAIN IDENTIFICATION PANEL</h2>
+                <p style="color: #c0b0a0; font-size: 15px;">Read the riddle on the security display and click the matching <strong>Villain Mask</strong> to unlock the staircase compartment!</p>
+                
+                <div class="riddle-card" id="riddle-box">"Loading riddle..."</div>
+                <div class="quiz-progress-text" id="quiz-progress-indicator">RIDDLE 1 OF 5</div>
+
+                <div class="mask-quiz-grid">
+                    <img src="https://i.imgur.com/SooY05Q.png" class="mask-quiz-item" id="qmask-ghostface" onclick="checkMaskQuiz('ghostface')" title="Ghostface">
+                    <img src="https://i.imgur.com/L9j71Wx.png" class="mask-quiz-item" id="qmask-jason" onclick="checkMaskQuiz('jason')" title="Jason Voorhees">
+                    <img src="https://i.imgur.com/GjuBkNm.png" class="mask-quiz-item" id="qmask-myers" onclick="checkMaskQuiz('myers')" title="Michael Myers">
+                    <img src="https://i.imgur.com/IKeeaEU.jpeg" class="mask-quiz-item" id="qmask-pennywise" onclick="checkMaskQuiz('pennywise')" title="Pennywise">
+                    <img src="https://i.imgur.com/dOW0uWv.png" class="mask-quiz-item" id="qmask-saw" onclick="checkMaskQuiz('saw')" title="Pig / Jigsaw">
+                </div>
+
+                <p id="quiz-status-msg" style="color: var(--gold-glow); font-size: 16px; min-height: 24px; font-weight: bold; margin-top: 5px;"></p>
+                <br>
+                <button class="close-btn" onclick="closeModal('modal-stairs-quiz')">Close Security Panel</button>
+            </div>
+        </div>
+
+        <!-- PUZZLE 4: CABIN 13 (THEMATIC RUSTIC FOOTLOCKER) -->
+        <div class="modal" id="modal-cabin">
+            <div class="modal-content cabin-theme-modal">
+                <h2>Cabin 13 - Forgotten Footlocker</h2>
+                
+                <!-- Locked without crowbar -->
+                <div id="cabin-locked-view">
+                    <p style="color: #ff4848; font-size: 16px; font-weight: bold;">THE CABIN DOOR IS BOARDED SHUT WITH HEAVY PLANKS!</p>
+                    <p style="color: #d1b89d;">You cannot open it with your bare hands. Find a Crowbar in the cinema to pry the boards off.</p>
+                </div>
+
+                <!-- Unlocked with crowbar -->
+                <div id="cabin-unlocked-view" style="display: none;">
+                    <p style="color: #ffd8a8; font-size: 15px;">Answer <strong>5 horror trivia questions correctly</strong> to unlock the 5 hidden Relics!</p>
+                    
+                    <!-- Relics Tray -->
+                    <div class="relics-tray">
+                        <div class="relic-item" id="relic-axe" title="Relic Slot">🪓</div>
+                        <div class="relic-item" id="relic-vhs" title="Relic Slot">📼</div>
+                        <div class="relic-item" id="relic-knife" title="Relic Slot">🔪</div>
+                        <div class="relic-item" id="relic-balloon" title="Relic Slot">🎈</div>
+                        <div class="relic-item" id="relic-saw" title="Relic Slot">🧩</div>
+                    </div>
+
+                    <!-- Trivia Active Box -->
+                    <div id="trivia-active-container">
+                        <div class="trivia-card" id="trivia-question-text">
+                            "Loading question..."
+                        </div>
+                        <div class="quiz-answers-grid" id="trivia-answers-grid"></div>
+                        <p id="trivia-feedback" style="color: var(--gold-glow); font-size: 15px; min-height: 22px; font-weight: bold;"></p>
+                    </div>
+
+                    <!-- Cryptic Camp Diary Note (Sem respostas dadas!) -->
+                    <div id="cabin-clue-revealed" class="camp-diary-note">
+                        <h3>★ TORN CAMP DIARY FOUND ★</h3>
+                        <p>
+                            Beneath the opened locker, a bloodstained diary page reveals a cryptic riddle:
+                        </p>
+                        <div class="riddle-verse">
+                            <strong>I.</strong> "First strikes the heavy iron blade that terrorized this camp."<br>
+                            <strong>II.</strong> "Next unspools the cursed recording that brings death in seven days."<br>
+                            <strong>III.</strong> "Then strikes the stealthy hunting knife of the masked caller."<br>
+                            <strong>IV.</strong> "After that floats the crimson sphere that lures victims to the sewers."<br>
+                            <strong>V.</strong> "Finally clicks the missing piece carved from flesh by the puzzle master."
+                        </div>
+                        <p style="color: #5a1010; font-size: 14px; text-align: center; margin-top: 10px; font-weight: 700;">
+                            &rarr; Take note of this order and inspect the <strong>Abandoned Boat</strong> by the dock!
+                        </p>
+                    </div>
+                </div>
+
+                <br>
+                <button class="newspaper-btn" onclick="closeModal('modal-cabin')">Close Cabin</button>
+            </div>
+        </div>
+
+        <!-- PUZZLE 5: ABANDONED BOAT (THEMATIC LEATHER BRIEFCASE) -->
+        <div class="modal" id="modal-boat">
+            <div class="modal-content briefcase-theme-modal">
+                <h2>Abandoned Boat - Iron-Bound Chest</h2>
+                
+                <div id="boat-locked-view" style="display: none;">
+                    <p style="color: #ff5555; font-size: 16px; font-weight: bold;">THE RELIC COMBINATION SLOTS ARE EMPTY!</p>
+                    <p style="color: #e0d0c0;">You must solve the trivia in Cabin 13 and recover all 5 Horror Relics before attempting to unlock this chest.</p>
+                </div>
+
+                <div id="boat-puzzle-view" style="display: none;">
+                    <p style="color: #eed6b6; font-size: 15px;">
+                        Place the 5 relics in the <strong>exact sequence</strong> described in the Camp Diary!
+                    </p>
+                    
+                    <!-- 5 Sequenced Slots com numerais romanos -->
+                    <div class="briefcase-slots">
+                        <div class="briefcase-slot-container">
+                            <span class="slot-roman-label">I</span>
+                            <div class="briefcase-slot" id="bslot-0" onclick="removeFromSlot(0)">?</div>
+                        </div>
+                        <div class="briefcase-slot-container">
+                            <span class="slot-roman-label">II</span>
+                            <div class="briefcase-slot" id="bslot-1" onclick="removeFromSlot(1)">?</div>
+                        </div>
+                        <div class="briefcase-slot-container">
+                            <span class="slot-roman-label">III</span>
+                            <div class="briefcase-slot" id="bslot-2" onclick="removeFromSlot(2)">?</div>
+                        </div>
+                        <div class="briefcase-slot-container">
+                            <span class="slot-roman-label">IV</span>
+                            <div class="briefcase-slot" id="bslot-3" onclick="removeFromSlot(3)">?</div>
+                        </div>
+                        <div class="briefcase-slot-container">
+                            <span class="slot-roman-label">V</span>
+                            <div class="briefcase-slot" id="bslot-4" onclick="removeFromSlot(4)">?</div>
+                        </div>
+                    </div>
+
+                    <p style="font-size: 13px; color: #d4b494;">Click an icon below to insert it into the sequence (click any slot above to remove):</p>
+
+                    <!-- Available Relics (Exibidos em ordem embaralhada!) -->
+                    <div class="briefcase-selection-pool" id="briefcase-pool"></div>
+
+                    <p id="briefcase-status-msg" style="color: var(--gold-glow); font-size: 15px; min-height: 24px; font-weight: bold;"></p>
+
+                    <div>
+                        <button onclick="checkBriefcaseCombination()">Unlock Chest</button>
+                        <button class="close-btn" onclick="resetBriefcaseSlots()">Reset Slots</button>
+                    </div>
+                </div>
+
+                <div id="boat-solved-view" style="display: none;">
+                    <p style="color: #4efd54; font-size: 18px; font-weight: bold;">★ CHEST UNLOCKED! ★</p>
+                    <p style="color: #e0f8d0; font-size: 15px;">Inside the secret false bottom, you discovered the <strong>Master Exit Key (🔑)</strong>!</p>
+                    <p style="color: var(--gold-glow); font-size: 14px;">Return to the <strong>Lobby</strong> and open the Locked Exit Door to make your final escape!</p>
+                </div>
+
+                <br>
+                <button class="close-btn" onclick="closeModal('modal-boat')">Close Chest</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // RETRO HORROR PROCEDURAL AUDIO ENGINE (Web Audio API)
+        // Zero arquivos externos, 100% confiável em qualquer navegador!
+        // ==========================================
+        let audioCtx = null;
+
+        function getAudioContext() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        const Sound = {
+            click: function() {
+                try {
+                    const ctx = getAudioContext();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(140, ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.05);
+                    gain.gain.setValueAtTime(0.18, ctx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.05);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.05);
+                } catch(e) {}
+            },
+
+            tvTune: function() {
+                try {
+                    const ctx = getAudioContext();
+                    const bufferSize = ctx.sampleRate * 0.22;
+                    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+                    const data = buffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) {
+                        data[i] = Math.random() * 2 - 1;
+                    }
+                    const noise = ctx.createBufferSource();
+                    noise.buffer = buffer;
+                    const filter = ctx.createBiquadFilter();
+                    filter.type = 'bandpass';
+                    filter.frequency.setValueAtTime(1200, ctx.currentTime);
+                    filter.Q.setValueAtTime(1.5, ctx.currentTime);
+                    const gain = ctx.createGain();
+                    gain.gain.setValueAtTime(0.18, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.22);
+                    noise.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(ctx.destination);
+                    noise.start();
+                } catch(e) {}
+            },
+
+            stinger: function() {
+                // Tensão/Suspense clássico de violino agudo dissonante (estilo Psycho / Halloween)
+                try {
+                    const ctx = getAudioContext();
+                    const freqs = [880, 932, 1174, 1244]; // Intervalos dissonantes
+                    freqs.forEach((f, idx) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(f, ctx.currentTime);
+                        osc.frequency.exponentialRampToValueAtTime(f * 0.9, ctx.currentTime + 0.7);
+                        gain.gain.setValueAtTime(0.08, ctx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.7);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start();
+                        osc.stop(ctx.currentTime + 0.7);
+                    });
+                } catch(e) {}
+            },
+
+            metalClang: function() {
+                // Impacto pesado metálico (crowbar, portas de ferro, trancas)
+                try {
+                    const ctx = getAudioContext();
+                    const osc = ctx.createOscillator();
+                    const osc2 = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(260, ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(60, ctx.currentTime + 0.4);
+                    osc2.type = 'square';
+                    osc2.frequency.setValueAtTime(180, ctx.currentTime);
+                    osc2.frequency.exponentialRampToValueAtTime(45, ctx.currentTime + 0.3);
+                    gain.gain.setValueAtTime(0.25, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+                    osc.connect(gain);
+                    osc2.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start();
+                    osc2.start();
+                    osc.stop(ctx.currentTime + 0.4);
+                    osc2.stop(ctx.currentTime + 0.4);
+                } catch(e) {}
+            },
+
+            lightSwitch: function() {
+                // Disjuntor industrial pesado (Caldeira ligando)
+                try {
+                    const ctx = getAudioContext();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(120, ctx.currentTime);
+                    osc.frequency.setValueAtTime(60, ctx.currentTime + 0.05);
+                    gain.gain.setValueAtTime(0.35, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.15);
+                } catch(e) {}
+            },
+
+            unlock: function() {
+                // Chime sombrio e misterioso de acerto / desbloqueio de chave / pista
+                try {
+                    const ctx = getAudioContext();
+                    const notes = [440, 554.37, 659.25, 880];
+                    notes.forEach((freq, idx) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.08);
+                        gain.gain.setValueAtTime(0, ctx.currentTime);
+                        gain.gain.setValueAtTime(0.18, ctx.currentTime + idx * 0.08);
+                        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.08 + 0.6);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start(ctx.currentTime + idx * 0.08);
+                        osc.stop(ctx.currentTime + idx * 0.08 + 0.6);
+                    });
+                } catch(e) {}
+            },
+
+            error: function() {
+                // Sinal grave de erro / senha incorreta
+                try {
+                    const ctx = getAudioContext();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(95, ctx.currentTime);
+                    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.3);
+                } catch(e) {}
+            },
+
+            victory: function() {
+                // Final triunfante gótico do escape room
+                try {
+                    const ctx = getAudioContext();
+                    const chords = [220, 277.18, 329.63, 440, 554.37, 659.25];
+                    chords.forEach((freq, idx) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.06);
+                        gain.gain.setValueAtTime(0.2, ctx.currentTime + idx * 0.06);
+                        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 2.0);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start(ctx.currentTime + idx * 0.06);
+                        osc.stop(ctx.currentTime + 2.0);
+                    });
+                } catch(e) {}
+            }
+        };
+
+        // Game State
+        const GameState = {
+            hasClue1996: false,
+            hasFlashlight: false,
+            hasCrowbar: false,
+            hasMasterKey: false,
+            cabinPried: false,
+            masksCollected: 0,
+            boilerLit: false,
+            quizStep: 0,
+            shuffledRiddles: [],
+            timeLeft: 900,
+            triviaScore: 0,
+            currentTriviaIndex: 0,
+            unlockedRelics: [],
+            relicPoolOrder: [],
+            placedSequence: [null, null, null, null, null],
+            relicIcons: {
+                axe: '🪓',
+                vhs: '📼',
+                knife: '🔪',
+                balloon: '🎈',
+                saw: '🧩'
+            }
+        };
+
+        const moviePairs = [
+            { id: 1, english: "Scream", brazilian: "Pânico" },
+            { id: 2, english: "A Nightmare on Elm Street", brazilian: "A Hora do Pesadelo" },
+            { id: 3, english: "Child's Play", brazilian: "Brinquedo Assassino (Chucky)" },
+            { id: 4, english: "The Ring", brazilian: "O Chamado" },
+            { id: 5, english: "The Texas Chain Saw Massacre", brazilian: "O Massacre da Serra Elétrica" }
+        ];
+
+        const baseQuizRiddles = [
+            { key: 'ghostface', text: '"I call my victims on the phone and ask: \'What\'s your favorite scary movie?\'"' },
+            { key: 'jason', text: '"I wear a hockey mask and stalk Camp Crystal Lake with my machete."' },
+            { key: 'pennywise', text: '"I am a shape-shifting dancing clown who floats in the sewers of Derry."' },
+            { key: 'saw', text: '"I like to play terrifying moral games with my victims: \'I want to play a game.\'"' },
+            { key: 'myers', text: '"I escaped from Smith\'s Grove Asylum and stalk Haddonfield every October 31st."' }
+        ];
+
+        const horrorTriviaPool = [
+            {
+                q: "What is the famous greeting Ghostface uses when calling victims on the phone in 'Scream'?",
+                options: ["'What's your favorite scary movie?'", "'Do you want to play a game?'", "'I'm under your bed!'", "'Guess who it is?'"],
+                correct: 0
+            },
+            {
+                q: "What iconic sports mask does Jason Voorhees wear in 'Friday the 13th'?",
+                options: ["A Baseball Catcher Mask", "A Hockey Goalie Mask", "A Fencing Mask", "A Ski Mask"],
+                correct: 1
+            },
+            {
+                q: "What color is the floating balloon associated with Pennywise the Clown?",
+                options: ["Electric Blue", "Bright Yellow", "Blood Red", "Jet Black"],
+                correct: 2
+            },
+            {
+                q: "In 'The Ring', how many days do victims have to live after watching the cursed tape?",
+                options: ["3 Days", "7 Days", "13 Days", "30 Days"],
+                correct: 1
+            },
+            {
+                q: "What mechanical puppet on a tricycle gives instructions to victims in the 'Saw' movies?",
+                options: ["Billy the Puppet", "Chucky", "Annabelle", "Slappy"],
+                correct: 0
+            },
+            {
+                q: "What is the name of the town where Michael Myers hunts on Halloween night?",
+                options: ["Springwood", "Haddonfield", "Woodsboro", "Crystal Lake"],
+                correct: 1
+            },
+            {
+                q: "In 'A Nightmare on Elm Street', where does Freddy Krueger attack his teenage victims?",
+                options: ["In the cinema", "In their dreams and sleep", "In the forest", "Underwater"],
+                correct: 1
+            },
+            {
+                q: "What kind of doll is possessed by the soul of Charles Lee Ray in 'Child's Play'?",
+                options: ["A Good Guy Doll (Chucky)", "A Porcelain Doll", "A Rag Doll", "A Marionette"],
+                correct: 0
+            },
+            {
+                q: "What weapon is Leatherface most famous for wielding in 'The Texas Chain Saw Massacre'?",
+                options: ["A Chainsaw", "A Crossbow", "A Spear", "Poison"],
+                correct: 0
+            },
+            {
+                q: "In Stephen King's 'IT', what is the name of the town where Pennywise awakens every 27 years?",
+                options: ["Salem's Lot", "Castle Rock", "Derry", "Amityville"],
+                correct: 2
+            }
+        ];
+
+        let selectedEnglish = null;
+        let selectedBrazilian = null;
+        let matchedCount = 0;
+        let currentTvInput = "";
+
+        function randomizeMaskPositions() {
+            const zones = [
+                { minTop: 55, maxTop: 72, minLeft: 12, maxLeft: 24 },
+                { minTop: 22, maxTop: 36, minLeft: 28, maxLeft: 42 },
+                { minTop: 68, maxTop: 82, minLeft: 42, maxLeft: 58 },
+                { minTop: 36, maxTop: 50, minLeft: 58, maxLeft: 70 },
+                { minTop: 52, maxTop: 75, minLeft: 76, maxLeft: 88 }
+            ];
+
+            const shuffledZones = [...zones].sort(() => Math.random() - 0.5);
+            const maskIds = ['mask-ghostface', 'mask-jason', 'mask-myers', 'mask-pennywise', 'mask-saw'];
+
+            maskIds.forEach((id, idx) => {
+                const maskEl = document.getElementById(id);
+                if (maskEl) {
+                    const z = shuffledZones[idx];
+                    const randTop = Math.floor(Math.random() * (z.maxTop - z.minTop + 1)) + z.minTop;
+                    const randLeft = Math.floor(Math.random() * (z.maxLeft - z.minLeft + 1)) + z.minLeft;
+
+                    maskEl.style.top = `${randTop}%`;
+                    maskEl.style.left = `${randLeft}%`;
+                }
+            });
+        }
+
+        function switchScene(sceneId) {
+            Sound.click();
+            document.querySelectorAll('.scene').forEach(scene => {
+                scene.classList.remove('active');
+            });
+
+            const targetScene = document.getElementById(sceneId);
+            targetScene.classList.add('active');
+
+            if (sceneId === 'scene-boiler') {
+                const darkness = document.getElementById('boiler-darkness');
+                const hintBar = document.getElementById('boiler-hint-text');
+
+                if (GameState.boilerLit) {
+                    darkness.classList.add('lights-on');
+                    if (hintBar) hintBar.style.display = 'none';
+                    document.querySelectorAll('.horror-mask').forEach(m => {
+                        if (m.style.display !== 'none') m.classList.add('lit');
+                    });
+                } else if (GameState.hasFlashlight) {
+                    darkness.classList.add('flashlight-active');
+                    darkness.classList.remove('lights-on');
+                    if (hintBar) hintBar.style.display = 'block';
+                } else {
+                    darkness.classList.remove('flashlight-active');
+                    darkness.classList.remove('lights-on');
+                    if (hintBar) hintBar.style.display = 'none';
+                    alert("IT'S PITCH BLACK! You need a Flashlight to explore Freddy's Boiler Room. Search the cinema rooms first!");
+                }
+            }
+        }
+
+        // Flashlight Cursor Tracking & Mask Dynamic Lighting
+        document.addEventListener('mousemove', (e) => {
+            const gameFrame = document.getElementById('game-frame');
+            const rect = gameFrame.getBoundingClientRect();
+            
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top - 50;
+
+            const darkness = document.getElementById('boiler-darkness');
+            if (darkness) {
+                darkness.style.setProperty('--mouse-x', `${x}px`);
+                darkness.style.setProperty('--mouse-y', `${y}px`);
+            }
+
+            const boilerScene = document.getElementById('scene-boiler');
+            if (boilerScene.classList.contains('active') && GameState.hasFlashlight && !GameState.boilerLit) {
+                const masks = document.querySelectorAll('.horror-mask');
+                masks.forEach(mask => {
+                    if (mask.style.display === 'none') return;
+                    const mRect = mask.getBoundingClientRect();
+                    const maskCenterX = (mRect.left + mRect.width / 2) - rect.left;
+                    const maskCenterY = (mRect.top + mRect.height / 2) - rect.top - 50;
+
+                    const dist = Math.hypot(x - maskCenterX, y - maskCenterY);
+
+                    if (dist < 110) {
+                        mask.classList.add('lit');
+                    } else {
+                        mask.classList.remove('lit');
+                    }
+                });
+            }
+        });
+
+        function collectMask(maskName, elementId) {
+            Sound.stinger();
+            const elem = document.getElementById(elementId);
+            if (elem && elem.style.display !== 'none') {
+                elem.style.display = 'none';
+                elem.classList.remove('lit');
+                GameState.masksCollected++;
+                document.getElementById('masks-count').textContent = GameState.masksCollected;
+                
+                if (GameState.masksCollected === 5) {
+                    alert(`ALL 5 MASKS FOUND!\n\nThe boiler generator system is ready. Click the "Turn On Boiler Lights" button below to illuminate the room!`);
+                    document.getElementById('btn-turn-lights-wrap').style.display = 'block';
+                } else {
+                    alert(`You found the ${maskName}! (${GameState.masksCollected}/5 Masks)`);
+                }
+            }
+        }
+
+        function turnOnBoilerLights() {
+            Sound.lightSwitch();
+            GameState.boilerLit = true;
+            const darkness = document.getElementById('boiler-darkness');
+            darkness.classList.add('lights-on');
+            
+            document.getElementById('mask-bar-container').style.display = 'none';
+            document.getElementById('btn-turn-lights-wrap').style.display = 'none';
+            document.getElementById('boiler-hint-text').style.display = 'none';
+            document.getElementById('spot-stairs').style.display = 'flex';
+
+            document.querySelectorAll('.horror-mask').forEach(m => m.classList.add('lit'));
+            alert("CLICK! The lights turned on! The room is fully illuminated, revealing a staircase leading upstairs.");
+        }
+
+        function openStairsQuizModal() {
+            if (GameState.shuffledRiddles.length === 0) {
+                GameState.shuffledRiddles = [...baseQuizRiddles].sort(() => Math.random() - 0.5);
+                GameState.quizStep = 0;
+            }
+
+            if (GameState.quizStep < GameState.shuffledRiddles.length) {
+                document.getElementById('riddle-box').textContent = GameState.shuffledRiddles[GameState.quizStep].text;
+                document.getElementById('quiz-progress-indicator').textContent = `RIDDLE ${GameState.quizStep + 1} OF ${GameState.shuffledRiddles.length}`;
+            }
+
+            openModal('modal-stairs-quiz');
+        }
+
+        function checkMaskQuiz(selectedKey) {
+            const currentRiddle = GameState.shuffledRiddles[GameState.quizStep];
+            const statusMsg = document.getElementById('quiz-status-msg');
+
+            if (selectedKey === currentRiddle.key) {
+                document.getElementById(`qmask-${selectedKey}`).classList.add('matched');
+                GameState.quizStep++;
+
+                if (GameState.quizStep < GameState.shuffledRiddles.length) {
+                    Sound.unlock();
+                    statusMsg.style.color = "#4efd54";
+                    statusMsg.textContent = "CORRECT MATCH! Accessing next riddle...";
+                    setTimeout(() => {
+                        statusMsg.textContent = "";
+                        document.getElementById('riddle-box').textContent = GameState.shuffledRiddles[GameState.quizStep].text;
+                        document.getElementById('quiz-progress-indicator').textContent = `RIDDLE ${GameState.quizStep + 1} OF ${GameState.shuffledRiddles.length}`;
+                    }, 800);
+                } else {
+                    Sound.metalClang();
+                    statusMsg.style.color = "#4efd54";
+                    statusMsg.textContent = "ALL RIDDLES SOLVED! CROWBAR OBTAINED!";
+                    
+                    GameState.hasCrowbar = true;
+                    document.getElementById('slot-crowbar').classList.add('found');
+
+                    setTimeout(() => {
+                        alert("CLANK! The security compartment pops open and you retrieve a Heavy Iron Crowbar! Return to the Lobby to explore Camp Crystal Lake.");
+                        closeModal('modal-stairs-quiz');
+                        document.getElementById('boiler-complete-notice').style.display = 'block';
+                    }, 500);
+                }
+            } else {
+                Sound.error();
+                statusMsg.textContent = "INCORRECT MASK! Read the riddle carefully and try again.";
+                statusMsg.style.color = "#ff3355";
+            }
+        }
+
+        // CABIN 13 & RANDOMIZED RELIC UNLOCK LOGIC
+        function initRelicUnlockPool() {
+            if (GameState.relicPoolOrder.length === 0) {
+                const keys = ['axe', 'vhs', 'knife', 'balloon', 'saw'];
+                GameState.relicPoolOrder = [...keys].sort(() => Math.random() - 0.5);
+            }
+        }
+
+        function interactWithCabin() {
+            initRelicUnlockPool();
+            openModal('modal-cabin');
+            if (GameState.hasCrowbar) {
+                document.getElementById('cabin-locked-view').style.display = 'none';
+                document.getElementById('cabin-unlocked-view').style.display = 'block';
+                if (!GameState.cabinPried) { Sound.metalClang(); }
+                GameState.cabinPried = true;
+                if (GameState.triviaScore < 5) {
+                    loadNextTriviaQuestion();
+                }
+            } else {
+                document.getElementById('cabin-locked-view').style.display = 'block';
+                document.getElementById('cabin-unlocked-view').style.display = 'none';
+            }
+        }
+
+        function loadNextTriviaQuestion() {
+            if (GameState.triviaScore >= 5) {
+                document.getElementById('trivia-active-container').style.display = 'none';
+                document.getElementById('cabin-clue-revealed').style.display = 'block';
+                return;
+            }
+
+            const current = horrorTriviaPool[GameState.currentTriviaIndex % horrorTriviaPool.length];
+            document.getElementById('trivia-question-text').textContent = `[ Question ${GameState.triviaScore + 1}/5 ]\n${current.q}`;
+            
+            const grid = document.getElementById('trivia-answers-grid');
+            grid.innerHTML = '';
+            document.getElementById('trivia-feedback').textContent = '';
+
+            current.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'quiz-btn';
+                btn.textContent = `${String.fromCharCode(65 + idx)}) ${opt}`;
+                btn.onclick = () => answerTrivia(idx, current.correct);
+                grid.appendChild(btn);
+            });
+        }
+
+        function answerTrivia(selectedIdx, correctIdx) {
+            const feedback = document.getElementById('trivia-feedback');
+            if (selectedIdx === correctIdx) {
+                const relicUnlockedKey = GameState.relicPoolOrder[GameState.triviaScore];
+                GameState.unlockedRelics.push(relicUnlockedKey);
+
+                const relicEl = document.getElementById(`relic-${relicUnlockedKey}`);
+                if (relicEl) relicEl.classList.add('unlocked');
+                
+                GameState.triviaScore++;
+                GameState.currentTriviaIndex++;
+                Sound.unlock();
+                feedback.style.color = "#4efd54";
+                feedback.textContent = `★ EXCELLENT! You discovered a Relic: ${GameState.relicIcons[relicUnlockedKey]} (${GameState.triviaScore}/5)`;
+
+                setTimeout(() => {
+                    loadNextTriviaQuestion();
+                }, 800);
+            } else {
+                Sound.error();
+                feedback.style.color = "#ff4848";
+                feedback.textContent = "WRONG ANSWER! Switching to another question...";
+                GameState.currentTriviaIndex++;
+                setTimeout(() => {
+                    loadNextTriviaQuestion();
+                }, 800);
+            }
+        }
+
+        // BOAT & BRIEFCASE SEQUENCE PUZZLE
+        function interactWithBoat() {
+            openModal('modal-boat');
+            if (GameState.hasMasterKey) {
+                document.getElementById('boat-locked-view').style.display = 'none';
+                document.getElementById('boat-puzzle-view').style.display = 'none';
+                document.getElementById('boat-solved-view').style.display = 'block';
+            } else if (GameState.triviaScore >= 5) {
+                document.getElementById('boat-locked-view').style.display = 'none';
+                document.getElementById('boat-puzzle-view').style.display = 'block';
+                document.getElementById('boat-solved-view').style.display = 'none';
+                renderBriefcasePool();
+                updateBriefcaseUI();
+            } else {
+                document.getElementById('boat-locked-view').style.display = 'block';
+                document.getElementById('boat-puzzle-view').style.display = 'none';
+                document.getElementById('boat-solved-view').style.display = 'none';
+            }
+        }
+
+        function renderBriefcasePool() {
+            const pool = document.getElementById('briefcase-pool');
+            if (pool.children.length === 0) {
+                const keysShuffled = ['axe', 'vhs', 'knife', 'balloon', 'saw'].sort(() => Math.random() - 0.5);
+                keysShuffled.forEach(k => {
+                    const btn = document.createElement('div');
+                    btn.className = 'briefcase-token-btn';
+                    btn.id = `btoken-${k}`;
+                    btn.textContent = GameState.relicIcons[k];
+                    btn.onclick = () => placeToken(k);
+                    pool.appendChild(btn);
+                });
+            }
+        }
+
+        function placeToken(tokenKey) {
+            Sound.click();
+            if (GameState.placedSequence.includes(tokenKey)) return;
+            const emptyIdx = GameState.placedSequence.findIndex(s => s === null);
+            if (emptyIdx !== -1) {
+                GameState.placedSequence[emptyIdx] = tokenKey;
+                updateBriefcaseUI();
+            }
+        }
+
+        function removeFromSlot(slotIdx) {
+            Sound.click();
+            if (GameState.placedSequence[slotIdx] !== null) {
+                GameState.placedSequence[slotIdx] = null;
+                updateBriefcaseUI();
+            }
+        }
+
+        function resetBriefcaseSlots() {
+            Sound.click();
+            GameState.placedSequence = [null, null, null, null, null];
+            document.getElementById('briefcase-status-msg').textContent = '';
+            updateBriefcaseUI();
+        }
+
+        function updateBriefcaseUI() {
+            for (let i = 0; i < 5; i++) {
+                const slotEl = document.getElementById(`bslot-${i}`);
+                const val = GameState.placedSequence[i];
+                slotEl.textContent = val ? GameState.relicIcons[val] : '?';
+            }
+
+            ['axe', 'vhs', 'knife', 'balloon', 'saw'].forEach(key => {
+                const btn = document.getElementById(`btoken-${key}`);
+                if (btn) {
+                    if (GameState.placedSequence.includes(key)) {
+                        btn.classList.add('used');
+                    } else {
+                        btn.classList.remove('used');
+                    }
+                }
+            });
+        }
+
+        function checkBriefcaseCombination() {
+            const correctOrder = ['axe', 'vhs', 'knife', 'balloon', 'saw'];
+            const statusMsg = document.getElementById('briefcase-status-msg');
+
+            if (GameState.placedSequence.includes(null)) {
+                statusMsg.style.color = "#ffcc00";
+                statusMsg.textContent = "Please fill all 5 Roman numeral slots before opening!";
+                return;
+            }
+
+            const isCorrect = GameState.placedSequence.every((val, i) => val === correctOrder[i]);
+
+            if (isCorrect) {
+                Sound.metalClang();
+                statusMsg.style.color = "#4efd54";
+                statusMsg.textContent = "CLACK! The brass combination dials click into place!";
+                
+                GameState.hasMasterKey = true;
+                document.getElementById('slot-key-exit').classList.add('found');
+
+                setTimeout(() => {
+                    alert("CLICK! The chest pops open! Inside you grab the Master Exit Key (🔑)! Escape to the Lobby now!");
+                    document.getElementById('boat-puzzle-view').style.display = 'none';
+                    document.getElementById('boat-solved-view').style.display = 'block';
+                    document.getElementById('lake-complete-notice').style.display = 'block';
+                }, 500);
+            } else {
+                Sound.error();
+                statusMsg.style.color = "#ff4848";
+                statusMsg.textContent = "INCORRECT COMBINATION! Re-read the verses in the Camp Diary and try again.";
+            }
+        }
+
+        // TIMER & ESCAPE
+        function startTimer() {
+            const timerEl = document.getElementById('timer');
+            const interval = setInterval(() => {
+                let minutes = Math.floor(GameState.timeLeft / 60);
+                let seconds = GameState.timeLeft % 60;
+
+                minutes = minutes < 10 ? '0' + minutes : minutes;
+                seconds = seconds < 10 ? '0' + seconds : seconds;
+
+                timerEl.textContent = `${minutes}:${seconds}`;
+
+                if (GameState.timeLeft <= 0) {
+                    clearInterval(interval);
+                    alert("TIME IS UP! The shadows consume you. You are trapped in the cinema forever...");
+                    location.reload();
+                }
+                GameState.timeLeft--;
+            }, 1000);
+        }
+
+        function collectFlashlight() {
+            Sound.unlock();
+            if (!GameState.hasFlashlight) {
+                GameState.hasFlashlight = true;
+                const slot = document.getElementById('slot-flashlight');
+                if (slot) slot.classList.add('found');
+                alert("Flashlight added to your inventory! You can now explore darker areas.");
+                closeModal('modal-tv-puzzle');
+                if (GameState.hasClue1996) {
+                    document.getElementById('room-complete-notice').style.display = 'block';
+                }
+            }
+        }
+
+        function openModal(id) {
+            Sound.click();
+            if (id === 'modal-tv-puzzle' && !GameState.hasClue1996 && !GameState.hasFlashlight) {
+                document.getElementById('tv-status-msg').textContent = "SIGNAL LOCKED: CHECK THE LOCAL NEWSPAPER TO FIND THE BROADCAST FREQUENCY!";
+                document.getElementById('tv-status-msg').style.color = "#ffcc00";
+            }
+            document.getElementById(id).style.display = 'flex';
+        }
+
+        function closeModal(id) {
+            Sound.click();
+            document.getElementById(id).style.display = 'none';
+        }
+
+        function pressTvDigit(digit) {
+            Sound.click();
+            if (currentTvInput.length < 4) {
+                currentTvInput += digit;
+                document.getElementById('tv-channel-digits').textContent = currentTvInput.padEnd(4, '-');
+            }
+        }
+
+        function clearTvDigits() {
+            Sound.click();
+            currentTvInput = "";
+            document.getElementById('tv-channel-digits').textContent = '----';
+            document.getElementById('tv-status-msg').textContent = "ENTER 4-DIGIT YEAR";
+            document.getElementById('tv-status-msg').style.color = "#4efd54";
+        }
+
+        function initMatchingPuzzle() {
+            const colEnglish = document.getElementById('col-english');
+            const colBrazilian = document.getElementById('col-brazilian');
+
+            colEnglish.innerHTML = '';
+            colBrazilian.innerHTML = '';
+
+            let englishList = [...moviePairs];
+            let brazilianList = [...moviePairs].sort(() => Math.random() - 0.5);
+
+            englishList.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'matching-card';
+                card.dataset.id = item.id;
+                card.textContent = item.english;
+                card.addEventListener('click', () => selectCard(card, 'english'));
+                colEnglish.appendChild(card);
+            });
+
+            brazilianList.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'matching-card';
+                card.dataset.id = item.id;
+                card.textContent = item.brazilian;
+                card.addEventListener('click', () => selectCard(card, 'brazilian'));
+                colBrazilian.appendChild(card);
+            });
+        }
+
+        function selectCard(card, type) {
+            if (card.classList.contains('matched')) return;
+
+            if (type === 'english') {
+                document.querySelectorAll('#col-english .matching-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                selectedEnglish = card;
+            } else {
+                document.querySelectorAll('#col-brazilian .matching-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                selectedBrazilian = card;
+            }
+
+            if (selectedEnglish && selectedBrazilian) {
+                if (selectedEnglish.dataset.id === selectedBrazilian.dataset.id) {
+                    selectedEnglish.classList.remove('selected');
+                    selectedBrazilian.classList.remove('selected');
+                    selectedEnglish.classList.add('matched');
+                    selectedBrazilian.classList.add('matched');
+                    selectedEnglish = null;
+                    selectedBrazilian = null;
+                    matchedCount++;
+                    Sound.click();
+
+                    if (matchedCount === moviePairs.length) {
+                        Sound.unlock();
+                        document.getElementById('matching-status').textContent = "MATCH COMPLETE!";
+                        document.getElementById('newspaper-clue-box').style.display = 'block';
+                        GameState.hasClue1996 = true;
+                        if (GameState.hasFlashlight) {
+                            document.getElementById('room-complete-notice').style.display = 'block';
+                        }
+                    }
+                } else {
+                    Sound.error();
+                    document.getElementById('matching-status').textContent = "Incorrect match. Try again!";
+                    setTimeout(() => {
+                        if (selectedEnglish) selectedEnglish.classList.remove('selected');
+                        if (selectedBrazilian) selectedBrazilian.classList.remove('selected');
+                        selectedEnglish = null;
+                        selectedBrazilian = null;
+                        document.getElementById('matching-status').textContent = "";
+                    }, 800);
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            startTimer();
+            initMatchingPuzzle();
+            randomizeMaskPositions();
+
+            // Navigation
+            document.getElementById('spot-hallway').addEventListener('click', () => switchScene('scene-cindy'));
+            document.getElementById('spot-popcorn').addEventListener('click', () => switchScene('scene-boiler'));
+            document.getElementById('spot-ticket-booth').addEventListener('click', () => switchScene('scene-lake'));
+
+            // Lobby Exit
+            document.getElementById('spot-exit-door').addEventListener('click', () => openModal('modal-exit'));
+
+            // Cindy's Room
+            document.getElementById('spot-newspapers').addEventListener('click', () => openModal('modal-matching-puzzle'));
+            document.getElementById('spot-tv').addEventListener('click', () => openModal('modal-tv-puzzle'));
+
+            // TV Tuning
+            document.getElementById('check-tv').addEventListener('click', () => {
+                const statusMsg = document.getElementById('tv-status-msg');
+                Sound.tvTune();
+                if (currentTvInput === '1996') {
+                    Sound.unlock();
+                    statusMsg.textContent = "[ CHANNEL 1996 FOUND - 'SCREAM' BROADCAST ]";
+                    statusMsg.style.color = "#00ff66";
+                    document.getElementById('flashlight-reveal').style.display = 'block';
+                } else {
+                    Sound.error();
+                    statusMsg.textContent = GameState.hasClue1996 ? "WRONG CHANNEL! STATIC NOISE..." : "SIGNAL LOCKED: CHECK THE NEWSPAPER FIRST!";
+                    statusMsg.style.color = "#ff3355";
+                }
+            });
+
+            document.getElementById('collect-flashlight-btn').addEventListener('click', collectFlashlight);
+
+            // Escape Check
+            document.getElementById('try-escape-btn').addEventListener('click', () => {
+                if (GameState.hasMasterKey) {
+                    Sound.victory();
+                    alert("CONGRATULATIONS! You unlocked all padlocks and escaped the Cinema of Horrors alive!\n\nYou beat the ESL Escape Room!");
+                    location.reload();
+                } else {
+                    alert("THE DOOR IS PADLOCKED! You need the Master Exit Key found in Camp Crystal Lake to escape!");
+                }
+            });
+        });
+    </script>
+</body>
+</html>
